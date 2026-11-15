@@ -1,0 +1,2769 @@
+-->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astro Guardian — Space Medical & Radiation Dashboard</title>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* =========================================================================
+       DESIGN SYSTEM & SPACE-MEDICAL DARK THEME
+    ========================================================================= */
+    :root {
+      --bg-void: #030712;
+      --bg-space: #070d1f;
+      --bg-panel: rgba(13, 22, 45, 0.78);
+      --bg-panel-solid: #0d162d;
+      --bg-card: rgba(18, 30, 60, 0.72);
+      --border-subtle: rgba(56, 189, 248, 0.18);
+      --border-glow: rgba(34, 211, 238, 0.45);
+
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+
+      --cyan: #22d3ee;
+      --teal: #14b8a6;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --purple: #a78bfa;
+
+      --glow-cyan: 0 0 18px rgba(34, 211, 238, 0.25);
+      --glow-red: 0 0 26px rgba(239, 68, 68, 0.45);
+      --glow-amber: 0 0 20px rgba(245, 158, 11, 0.35);
+      --glow-green: 0 0 18px rgba(16, 185, 129, 0.28);
+
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --radius-sm: 6px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: radial-gradient(circle at 20% 0%, #0d1b3a 0%, #050a18 55%, #02050d 100%);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.45;
+      overflow-x: hidden;
+    }
+
+    /* Subtle Starfield Canvas */
+    #starfield {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.55;
+    }
+
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 12px 18px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Glass Panels */
+    .panel {
+      background: var(--bg-panel);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .panel:hover {
+      border-color: rgba(56, 189, 248, 0.32);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .panel-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-subtitle {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* =========================================================================
+       1. HEADER
+    ========================================================================= */
+    .top-header {
+      position: sticky;
+      top: 8px;
+      z-index: 40;
+      background: rgba(7, 13, 31, 0.9);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-lg);
+      padding: 10px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.65), var(--glow-cyan);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(20, 184, 166, 0.1));
+      border: 1px solid rgba(34, 211, 238, 0.5);
+      box-shadow: var(--glow-cyan);
+      color: var(--cyan);
+      flex-shrink: 0;
+    }
+
+    .brand-text h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #fff;
+      line-height: 1.1;
+    }
+
+    .brand-text span {
+      font-size: 0.72rem;
+      color: var(--cyan);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .header-telemetry {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hud-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      font-size: 0.78rem;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .hud-pill .label {
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .hud-pill.spe-badge {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.8);
+      color: #fecaca;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      animation: pulseAlert 1.2s infinite;
+    }
+
+    .hud-pill.offline-badge {
+      background: rgba(20, 184, 166, 0.14);
+      border-color: rgba(20, 184, 166, 0.45);
+      color: #5eead4;
+      font-weight: 600;
+    }
+
+    .hud-pill.comms-lost {
+      background: rgba(245, 158, 11, 0.18);
+      border-color: rgba(245, 158, 11, 0.7);
+      color: #fde68a;
+      animation: pulseAlert 1.6s infinite;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .dot-green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot-amber { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+    .dot-red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .dot-cyan { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-primary);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: rgba(34, 211, 238, 0.16);
+      border-color: var(--cyan);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-icon {
+      padding: 7px 11px;
+      font-size: 0.95rem;
+    }
+
+    .btn-active-warning {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--amber);
+      color: #fde68a;
+    }
+
+    .btn-muted {
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+      background: rgba(239, 68, 68, 0.12);
+    }
+
+    .sync-note {
+      font-size: 0.72rem;
+      color: #fde68a;
+      background: rgba(245, 158, 11, 0.14);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      padding: 3px 9px;
+      border-radius: 6px;
+      display: none;
+    }
+    .sync-note.visible {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* =========================================================================
+       2. CREW SELECTOR & SCENARIO TOOLBAR
+    ========================================================================= */
+    .top-controls-grid {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 14px;
+    }
+
+    .crew-header-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .baseline-tabs {
+      display: inline-flex;
+      background: rgba(7, 13, 31, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: rgba(34, 211, 238, 0.2);
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.55);
+    }
+
+    .crew-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .crew-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .crew-card:hover {
+      border-color: rgba(34, 211, 238, 0.55);
+      background: rgba(23, 39, 77, 0.85);
+    }
+
+    .crew-card.selected {
+      border-color: var(--cyan);
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(15, 23, 42, 0.92));
+      box-shadow: var(--glow-cyan);
+    }
+
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0ea5e9, #14b8a6);
+      color: #030712;
+      font-weight: 800;
+      font-size: 0.88rem;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .crew-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .crew-name {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .crew-role {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .risk-chip {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 7px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    .chip-low { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.45); }
+    .chip-medium { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.5); }
+    .chip-high { background: rgba(239, 68, 68, 0.24); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.65); }
+
+    /* Scenario Controls */
+    .scenario-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn-scenario {
+      flex: 1 1 auto;
+      padding: 8px 11px;
+      font-size: 0.76rem;
+    }
+
+    .btn-normal.active-scenario { border-color: var(--green); background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+    .btn-storm { border-color: rgba(239, 68, 68, 0.45); color: #fca5a5; }
+    .btn-storm:hover, .btn-storm.active-scenario { background: rgba(239, 68, 68, 0.22); border-color: var(--red); color: #fff; }
+    .btn-shelter { border-color: rgba(20, 184, 166, 0.45); color: #5eead4; }
+    .btn-shelter:hover, .btn-shelter.active-scenario { background: rgba(20, 184, 166, 0.22); border-color: var(--teal); color: #fff; }
+    .btn-fault { border-color: rgba(245, 158, 11, 0.45); color: #fde68a; }
+    .btn-fault:hover { background: rgba(245, 158, 11, 0.2); border-color: var(--amber); }
+    .btn-export { border-color: rgba(167, 139, 250, 0.4); color: #ddd6fe; }
+    .btn-export:hover { background: rgba(167, 139, 250, 0.2); border-color: var(--purple); }
+    .btn-reset { border-color: rgba(148, 163, 184, 0.35); color: var(--text-secondary); }
+
+    /* =========================================================================
+       WARNING BANNER & VOICE TRANSCRIPT
+    ========================================================================= */
+    .advisory-banner {
+      border-radius: var(--radius-lg);
+      padding: 12px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.14), rgba(13, 22, 45, 0.85));
+      transition: all 0.35s ease;
+    }
+
+    .advisory-banner.level-medium {
+      border-color: rgba(245, 158, 11, 0.7);
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(13, 22, 45, 0.9));
+      box-shadow: var(--glow-amber);
+    }
+
+    .advisory-banner.level-high {
+      border-color: rgba(239, 68, 68, 0.9);
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.28), rgba(28, 10, 20, 0.92));
+      box-shadow: var(--glow-red);
+      animation: borderPulse 1.5s infinite;
+    }
+
+    .advisory-main {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .advisory-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+
+    .advisory-badge {
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .voice-transcript {
+      font-size: 0.78rem;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      opacity: 0.92;
+      font-style: italic;
+    }
+
+    /* =========================================================================
+       3 & 4. HERO SECTION: RISK GAUGE + EXPLAINABLE AI
+    ========================================================================= */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 14px;
+    }
+
+    .gauge-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: box-shadow 0.4s ease, border-color 0.4s ease;
+    }
+
+    .gauge-panel.high-glow {
+      border-color: rgba(239, 68, 68, 0.8);
+      box-shadow: var(--glow-red);
+    }
+
+    .gauge-panel.medium-glow {
+      border-color: rgba(245, 158, 11, 0.65);
+      box-shadow: var(--glow-amber);
+    }
+
+    .gauge-container {
+      position: relative;
+      width: 100%;
+      max-width: 340px;
+      margin: 4px auto 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .gauge-svg {
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+
+    .gauge-needle {
+      transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: 150px 150px;
+    }
+
+    .gauge-arc-fill {
+      transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.4s ease;
+    }
+
+    .gauge-readout {
+      text-align: center;
+      margin-top: -18px;
+    }
+
+    .gauge-score {
+      font-family: var(--font-mono);
+      font-size: 2.7rem;
+      font-weight: 800;
+      line-height: 1;
+      transition: color 0.3s ease;
+    }
+
+    .gauge-unit {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .gauge-action-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      background: rgba(7, 13, 31, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .model-tag {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(34, 211, 238, 0.12);
+      border: 1px solid rgba(34, 211, 238, 0.35);
+      color: var(--cyan);
+    }
+
+    /* Explainable AI Bars */
+    .xai-list {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .xai-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .xai-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+    }
+
+    .xai-name {
+      color: var(--text-primary);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .xai-pts {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--cyan);
+    }
+
+    .bar-track {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1), background 0.4s ease;
+    }
+
+    .xai-composite {
+      margin-top: 8px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.22);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      font-size: 0.88rem;
+    }
+
+    /* =========================================================================
+       6 & 7. VITAL SIGNS + BODY SYSTEMS
+    ========================================================================= */
+    .vitals-systems-grid {
+      display: grid;
+      grid-template-columns: 1.65fr 1fr;
+      gap: 14px;
+    }
+
+    .vitals-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .vital-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .vital-card.state-warning {
+      border-color: rgba(245, 158, 11, 0.7);
+      background: rgba(245, 158, 11, 0.08);
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.16);
+    }
+
+    .vital-card.state-critical {
+      border-color: rgba(239, 68, 68, 0.85);
+      background: rgba(239, 68, 68, 0.1);
+      box-shadow: 0 0 18px rgba(239, 68, 68, 0.25);
+    }
+
+    .vital-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .vital-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .range-badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: var(--text-secondary);
+    }
+
+    .vital-val-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .vital-value {
+      font-family: var(--font-mono);
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .vital-unit {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-left: 4px;
+    }
+
+    .spark-wrap {
+      height: 44px;
+      width: 100%;
+      position: relative;
+    }
+
+    /* Body Systems */
+    .systems-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 4px;
+    }
+
+    .system-item {
+      background: rgba(7, 13, 31, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .system-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+    }
+
+    /* =========================================================================
+       5. RADIATION MONITORING
+    ========================================================================= */
+    .radiation-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .rad-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .rad-box {
+      background: var(--bg-card);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .rad-box.full-span {
+      grid-column: 1 / -1;
+    }
+
+    .rad-title {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .rad-big {
+      font-family: var(--font-mono);
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .spe-flux-tag {
+      display: none;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(239, 68, 68, 0.24);
+      border: 1px solid rgba(239, 68, 68, 0.75);
+      color: #fecaca;
+      animation: pulseAlert 1.2s infinite;
+    }
+    .spe-flux-tag.visible { display: inline-block; }
+
+    /* Tooltip */
+    .tooltip-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      cursor: help;
+    }
+
+    .info-icon {
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      border: 1px solid rgba(34, 211, 238, 0.6);
+      color: var(--cyan);
+      font-size: 0.68rem;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+    }
+
+    .tooltip-box {
+      position: absolute;
+      bottom: 135%;
+      right: 0;
+      width: 245px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #020617;
+      border: 1px solid var(--cyan);
+      color: #e2e8f0;
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(4px);
+      transition: all 0.2s ease;
+      z-index: 30;
+    }
+
+    .tooltip-wrap:hover .tooltip-box {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .chart-box {
+      background: rgba(7, 13, 31, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      min-height: 225px;
+      position: relative;
+    }
+
+    /* =========================================================================
+       8, 10, 11. BOTTOM SECTION: HISTORY CHART, SENSORS, ALERT LOG
+    ========================================================================= */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 0.85fr 1.05fr;
+      gap: 14px;
+    }
+
+    /* Sensors */
+    .sensor-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sensor-item {
+      background: var(--bg-card);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: var(--radius-sm);
+      padding: 9px 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .sensor-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .sensor-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.73rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    .status-online { color: #6ee7b7; }
+    .status-degraded { color: #fcd34d; }
+    .status-offline { color: #fca5a5; }
+
+    .pulse-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      position: relative;
+    }
+    .pulse-dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulseSoft 2s infinite; }
+    .pulse-dot.degraded { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: pulseAlert 1.2s infinite; }
+    .pulse-dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+    /* Alert Log */
+    .alert-log-list {
+      max-height: 278px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 4px;
+    }
+
+    .alert-log-list::-webkit-scrollbar { width: 6px; }
+    .alert-log-list::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); border-radius: 4px; }
+    .alert-log-list::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.35); border-radius: 4px; }
+
+    .log-entry {
+      background: var(--bg-card);
+      border-left: 3px solid var(--green);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.76rem;
+    }
+
+    .log-entry.level-MEDIUM { border-left-color: var(--amber); }
+    .log-entry.level-HIGH { border-left-color: var(--red); background: rgba(239, 68, 68, 0.08); }
+
+    .log-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+    }
+
+    .log-msg {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .log-action {
+      color: var(--cyan);
+      font-size: 0.72rem;
+    }
+
+    /* Animations */
+    @keyframes pulseAlert {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+
+    @keyframes pulseSoft {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: 0.75; }
+    }
+
+    @keyframes borderPulse {
+      0%, 100% { box-shadow: 0 0 22px rgba(239, 68, 68, 0.45); }
+      50% { box-shadow: 0 0 34px rgba(239, 68, 68, 0.78); }
+    }
+
+    /* =========================================================================
+       RESPONSIVE BREAKPOINTS (16:9 Projector & Tablet)
+    ========================================================================= */
+    @media (max-width: 1280px) {
+      .top-controls-grid { grid-template-columns: 1fr; }
+      .bottom-grid { grid-template-columns: 1fr 1fr; }
+      .bottom-grid > :first-child { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 980px) {
+      .crew-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero-grid, .vitals-systems-grid, .radiation-grid, .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 580px) {
+      .crew-grid, .vitals-grid, .rad-metrics { grid-template-columns: 1fr; }
+      .top-header { padding: 10px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="starfield"></canvas>
+
+  <div class="app-shell">
+    <!-- =======================================================================
+         1. HEADER
+    ======================================================================== -->
+    <header class="top-header">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>Astro Guardian</h1>
+          <span>Space Medical &amp; Radiation Telemetry</span>
+        </div>
+      </div>
+
+      <div class="header-telemetry">
+        <div class="hud-pill" title="Mission Elapsed Time">
+          <span class="dot dot-cyan"></span>
+          <span class="label">MET</span>
+          <span id="metTimer" class="mono">122d 08:38:06</span>
+        </div>
+
+        <div id="commsPill" class="hud-pill" title="One-way Earth Communication Signal Delay">
+          <span id="commsDot" class="dot dot-green"></span>
+          <span class="label">Earth Link</span>
+          <span id="commsLatency" class="mono">11.8 min — 212.2M km</span>
+        </div>
+
+        <div id="speHeaderBadge" class="hud-pill spe-badge" style="display: none;">
+          <span class="dot dot-red"></span>
+          SOLAR PARTICLE EVENT
+        </div>
+
+        <div id="offlineBadge" class="hud-pill offline-badge">
+          <span class="dot dot-green"></span>
+          Offline Mode — Running Locally
+        </div>
+
+        <span id="syncNote" class="sync-note">
+          Saving locally for later sync
+        </span>
+      </div>
+
+      <div class="header-actions">
+        <button id="btnCommsLoss" class="btn" type="button" title="Toggle Earth Communication Loss">
+          Simulate Comms Loss
+        </button>
+        <button id="btnMute" class="btn btn-icon" type="button" title="Mute / Unmute Voice Advisories" aria-label="Toggle Voice Advisories">
+          <span id="muteIcon">🔊</span> <span id="muteLabel">Voice On</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- =======================================================================
+         2 & 9. CREW SELECTOR + SCENARIO SIMULATOR CONTROLS
+    ======================================================================== -->
+    <section class="top-controls-grid">
+      <!-- Crew View -->
+      <div class="panel">
+        <div class="crew-header-bar">
+          <div class="panel-title">
+            <span>Crew View</span>
+            <span id="activeScenarioPill" class="panel-subtitle">[Normal Operations]</span>
+          </div>
+          <div class="baseline-tabs" role="tablist" aria-label="Baseline Mode">
+            <button id="tabGeneric" class="tab-btn active" type="button" role="tab" aria-selected="true">
+              Mission Generic Baselines
+            </button>
+            <button id="tabPersonal" class="tab-btn" type="button" role="tab" aria-selected="false">
+              Personalized Baselines
+            </button>
+          </div>
+        </div>
+        <div id="crewGrid" class="crew-grid"></div>
+      </div>
+
+      <!-- Mission Scenario Simulator -->
+      <div class="panel">
+        <div class="panel-header" style="margin-bottom: 10px;">
+          <div class="panel-title">Mission Scenario Simulator</div>
+          <span id="shelterCountdown" class="panel-subtitle"></span>
+        </div>
+        <div class="scenario-buttons">
+          <button id="btnNormal" class="btn btn-scenario btn-normal active-scenario" type="button">
+            Normal Day
+          </button>
+          <button id="btnStorm" class="btn btn-scenario btn-storm" type="button">
+            Trigger Solar Storm
+          </button>
+          <button id="btnShelter" class="btn btn-scenario btn-shelter" type="button">
+            Enter Storm Shelter
+          </button>
+          <button id="btnSensorFail" class="btn btn-scenario btn-fault" type="button">
+            Sensor Failure
+          </button>
+          <button id="btnDownloadCsv" class="btn btn-scenario" type="button">
+            Download CSV Log
+          </button>
+          <button id="btnExportJson" class="btn btn-scenario btn-export" type="button">
+            Export Health Report (JSON)
+          </button>
+          <button id="btnReset" class="btn btn-scenario btn-reset" type="button">
+            Reset
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         WARNING BANNER & VOICE TRANSCRIPT
+    ======================================================================== -->
+    <section id="advisoryBanner" class="advisory-banner" role="status" aria-live="polite">
+      <div class="advisory-main">
+        <div class="advisory-left">
+          <span id="advisoryBadge" class="advisory-badge chip-low">LOW RISK</span>
+          <span id="advisoryText">Continue normal mission schedule. All crew vitals nominal.</span>
+        </div>
+        <span id="advisoryAstronaut" class="panel-subtitle">Monitoring: Eng. Tariq Al-Mansoor</span>
+      </div>
+      <div id="voiceTranscript" class="voice-transcript">
+        🔊 Voice advisory system armed (English synthesis ready).
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         3 & 4. HERO: RISK SCORE GAUGE + EXPLAINABLE AI
+    ======================================================================== -->
+    <section class="hero-grid">
+      <!-- Risk Score Gauge -->
+      <div id="gaugePanel" class="panel gauge-panel">
+        <div class="panel-header">
+          <div class="panel-title">Composite Health Risk Score</div>
+          <span class="model-tag">RF-Ensemble v2.4</span>
+        </div>
+
+        <div class="gauge-container">
+          <svg class="gauge-svg" viewBox="0 0 300 175" aria-label="Risk Score Semi-Circular Gauge">
+            <defs>
+              <filter id="redGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Background Track -->
+            <path d="M 30 150 A 120 120 0 0 1 270 150" fill="none" stroke="rgba(148,163,184,0.16)" stroke-width="20" stroke-linecap="round"/>
+
+            <!-- Threshold Zones (subtle ticks) -->
+            <path d="M 30 150 A 120 120 0 0 1 92 45" fill="none" stroke="rgba(16,185,129,0.22)" stroke-width="20"/>
+            <path d="M 94 44 A 120 120 0 0 1 206 44" fill="none" stroke="rgba(245,158,11,0.22)" stroke-width="20"/>
+            <path d="M 208 45 A 120 120 0 0 1 270 150" fill="none" stroke="rgba(239,68,68,0.22)" stroke-width="20"/>
+
+            <!-- Animated Active Arc (length of 180deg arc r=120 is ~377) -->
+            <path id="gaugeArcFill" class="gauge-arc-fill"
+              d="M 30 150 A 120 120 0 0 1 270 150"
+              fill="none" stroke="#10b981" stroke-width="14" stroke-linecap="round"
+              stroke-dasharray="377" stroke-dashoffset="320" />
+
+            <!-- Scale labels -->
+            <text x="22" y="168" fill="#94a3b8" font-size="11" font-family="monospace">0</text>
+            <text x="80" y="34" fill="#6ee7b7" font-size="11" font-family="monospace">33</text>
+            <text x="205" y="34" fill="#fcd34d" font-size="11" font-family="monospace">66</text>
+            <text x="262" y="168" fill="#fca5a5" font-size="11" font-family="monospace">100</text>
+
+            <!-- Animated Needle -->
+            <g id="gaugeNeedle" class="gauge-needle" transform="rotate(-70)">
+              <line x1="150" y1="150" x2="150" y2="48" stroke="#f8fafc" stroke-width="3.5" stroke-linecap="round"/>
+              <circle cx="150" cy="150" r="8" fill="#22d3ee" stroke="#030712" stroke-width="2"/>
+            </g>
+          </svg>
+
+          <div class="gauge-readout">
+            <div id="gaugeScoreVal" class="gauge-score" style="color: var(--green);">14</div>
+            <div class="gauge-unit">Risk Index (0–100)</div>
+          </div>
+        </div>
+
+        <div class="gauge-action-box">
+          <div>
+            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">Recommended Protocol</div>
+            <div id="gaugeActionText" style="font-size: 0.84rem; font-weight: 700; color: #fff;">
+              Continue normal mission schedule
+            </div>
+          </div>
+          <span id="gaugeLevelChip" class="risk-chip chip-low">LOW</span>
+        </div>
+      </div>
+
+      <!-- Explainable AI Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Early Warning AI — Explainable Feature Importance</div>
+          <span id="xaiBaselineTag" class="panel-subtitle">Baseline: Mission Generic</span>
+        </div>
+
+        <div id="xaiList" class="xai-list"></div>
+
+        <div class="xai-composite">
+          <span>Composite Risk Contribution</span>
+          <span id="xaiCompositeVal" class="mono" style="color: var(--cyan);">14 / 100 pts</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         6 & 7. VITAL SIGNS + BODY SYSTEMS
+    ======================================================================== -->
+    <section class="vitals-systems-grid">
+      <!-- Live Vital Signs -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Live Vital Signs Telemetry</div>
+          <span id="vitalsBaselineLabel" class="panel-subtitle">Thresholds: Mission Generic</span>
+        </div>
+
+        <div class="vitals-grid">
+          <!-- Body Temp -->
+          <div id="cardTemp" class="vital-card">
+            <div class="vital-top">
+              <span class="vital-label">Body Temperature</span>
+              <span id="rangeTemp" class="range-badge">36.1–37.2 °C</span>
+            </div>
+            <div class="vital-val-row">
+              <div><span id="valTemp" class="vital-value">36.6</span><span class="vital-unit">°C</span></div>
+              <span id="statusTemp" class="risk-chip chip-low">Nominal</span>
+            </div>
+            <div class="spark-wrap"><canvas id="sparkTemp"></canvas></div>
+          </div>
+
+          <!-- SpO2 -->
+          <div id="cardSpo2" class="vital-card">
+            <div class="vital-top">
+              <span class="vital-label">Blood Oxygen (SpO2)</span>
+              <span id="rangeSpo2" class="range-badge">95–99 %</span>
+            </div>
+            <div class="vital-val-row">
+              <div><span id="valSpo2" class="vital-value">98</span><span class="vital-unit">%</span></div>
+              <span id="statusSpo2" class="risk-chip chip-low">Nominal</span>
+            </div>
+            <div class="spark-wrap"><canvas id="sparkSpo2"></canvas></div>
+          </div>
+
+          <!-- Blood Pressure -->
+          <div id="cardBp" class="vital-card">
+            <div class="vital-top">
+              <span class="vital-label">Blood Pressure</span>
+              <span id="rangeBp" class="range-badge">85–135 / 60–95 mmHg</span>
+            </div>
+            <div class="vital-val-row">
+              <div><span id="valBp" class="vital-value">116/76</span><span class="vital-unit">mmHg</span></div>
+              <span id="statusBp" class="risk-chip chip-low">Nominal</span>
+            </div>
+            <div class="spark-wrap"><canvas id="sparkBp"></canvas></div>
+          </div>
+
+          <!-- Heart Rate -->
+          <div id="cardHr" class="vital-card">
+            <div class="vital-top">
+              <span class="vital-label">Heart Rate</span>
+              <span id="rangeHr" class="range-badge">60–100 bpm</span>
+            </div>
+            <div class="vital-val-row">
+              <div><span id="valHr" class="vital-value">72</span><span class="vital-unit">bpm</span></div>
+              <span id="statusHr" class="risk-chip chip-low">Nominal</span>
+            </div>
+            <div class="spark-wrap"><canvas id="sparkHr"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body Systems Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Physiological Body Systems</div>
+          <span class="panel-subtitle">Microgravity Strain (pts)</span>
+        </div>
+        <div id="bodySystemsList" class="systems-list"></div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         5. RADIATION MONITORING
+    ======================================================================== -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>Radiation Dosimetry &amp; Space Weather</span>
+          <span id="speFluxTag" class="spe-flux-tag">ALERT: Solar Particle Event flux</span>
+        </div>
+        <span class="panel-subtitle">TEPC Dosimeter | Career Reference Limit: 600 mSv</span>
+      </div>
+
+      <div class="radiation-grid">
+        <div class="rad-metrics">
+          <div class="rad-box">
+            <div class="rad-title">Current Dose Rate</div>
+            <div id="valDoseRate" class="rad-big" style="color: var(--cyan);">0.042 <span style="font-size:0.85rem;color:var(--text-secondary);">mSv/hr</span></div>
+            <div id="doseRateNote" class="panel-subtitle">Nominal background GCR</div>
+          </div>
+
+          <div class="rad-box">
+            <div class="rad-title">
+              <span>Safe Time Remaining</span>
+              <span class="tooltip-wrap" aria-label="Safe Time Formula">
+                <span class="info-icon">i</span>
+                <span class="tooltip-box">Formula: (600 − Cumulative Dose) ÷ Current Dose Rate</span>
+              </span>
+            </div>
+            <div id="valSafeTime" class="rad-big" style="color: var(--green);">11,304h 45m</div>
+            <div class="panel-subtitle">Until 600 mSv career cap</div>
+          </div>
+
+          <div class="rad-box full-span">
+            <div class="rad-title">
+              <span>Career Radiation Budget — Career Reference Limit: 600 mSv</span>
+              <span id="valCumulativeDose" class="mono" style="color: #fff; font-weight: 700;">125.20 / 600 mSv (20.9%)</span>
+            </div>
+            <div class="bar-track" style="height: 12px;">
+              <div id="radBudgetBar" class="bar-fill" style="width: 20.9%; background: linear-gradient(90deg, #10b981, #22d3ee);"></div>
+            </div>
+            <div class="panel-subtitle" style="display:flex; justify-content:space-between;">
+              <span>Cumulative Mission Exposure</span>
+              <span id="radRemainingMsv">474.80 mSv remaining budget</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div style="font-size: 0.76rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 600;">
+            30-Minute Dose Rate Telemetry (mSv/hr) — Live Timestamps
+          </div>
+          <div style="height: 195px; position: relative;">
+            <canvas id="dose30MinChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         8, 10, 11. BOTTOM ROW: MISSION TIMELINE, SENSORS, ALERT LOG
+    ======================================================================== -->
+    <section class="bottom-grid">
+      <!-- Historical Mission Radiation Chart -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Mission Radiation Timeline</div>
+          <span class="panel-subtitle">Sol 112 → Sol 142 (Cumulative mSv)</span>
+        </div>
+        <div style="height: 270px; position: relative;">
+          <canvas id="historyChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Sensor Status Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Sensor Status Panel</div>
+          <span id="sensorSummary" class="panel-subtitle">6/6 Online</span>
+        </div>
+        <div id="sensorList" class="sensor-list"></div>
+      </div>
+
+      <!-- Alert Log -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Alerts &amp; Action Log</div>
+          <span id="logCountBadge" class="panel-subtitle">0 entries</span>
+        </div>
+        <div id="alertLogList" class="alert-log-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- =========================================================================
+       JAVASCRIPT APPLICATION MODULES
+       1. Starfield Background
+       2. Crew Data & Baseline Configuration
+       3. Voice Advisory Module (Web Speech API)
+       4. Simulation & RF-Ensemble v2.4 Risk Engine
+       5. Charts & UI Rendering Module
+  ========================================================================== -->
+  <script>
+    (() => {
+      'use strict';
+
+      /* -----------------------------------------------------------------------
+         STORAGE KEYS & CONSTANTS
+      ----------------------------------------------------------------------- */
+      const STORAGE_KEY_LOGS = 'astro_guardian_alert_logs_v1';
+      const STORAGE_KEY_STATE = 'astro_guardian_sim_state_v1';
+      const CAREER_LIMIT_MSV = 600;
+      const HISTORY_MAX_POINTS = 15; // for vital sparklines
+      const DOSE_CHART_POINTS = 12;  // 30-min chart intervals
+
+      /* -----------------------------------------------------------------------
+         1. SUBTLE STARFIELD CANVAS BACKGROUND
+      ----------------------------------------------------------------------- */
+      function initStarfield() {
+        const canvas = document.getElementById('starfield');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+
+        function resize() {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+          stars = Array.from({ length: 110 }, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 1.4 + 0.3,
+            a: Math.random() * 0.6 + 0.2,
+            da: (Math.random() - 0.5) * 0.008
+          }));
+        }
+
+        function draw() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          for (const s of stars) {
+            s.a += s.da;
+            if (s.a > 0.85 || s.a < 0.15) s.da *= -1;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(186, 230, 253, ${s.a.toFixed(2)})`;
+            ctx.fill();
+          }
+          requestAnimationFrame(draw);
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+        draw();
+      }
+
+      /* -----------------------------------------------------------------------
+         2. CREW PROFILES & GENERIC VS PERSONALIZED BASELINES
+      ----------------------------------------------------------------------- */
+      const GENERIC_BASELINES = {
+        temp: { min: 36.1, max: 37.2, label: '36.1–37.2 °C' },
+        spo2: { min: 95, max: 99, label: '95–99 %' },
+        sys:  { min: 85, max: 135 },
+        dia:  { min: 60, max: 95 },
+        bpLabel: '85–135 / 60–95 mmHg',
+        hr:   { min: 60, max: 100, label: '60–100 bpm' }
+      };
+
+      function createInitialCrew() {
+        return [
+          {
+            id: 'tariq',
+            name: 'Eng. Tariq Al-Mansoor',
+            role: 'Flight Engineer',
+            initials: 'TM',
+            personalBaseline: {
+              temp: { min: 36.2, max: 37.1, label: '36.2–37.1 °C' },
+              spo2: { min: 96, max: 99, label: '96–99 %' },
+              sys:  { min: 92, max: 134 },
+              dia:  { min: 62, max: 88 },
+              bpLabel: '92–134 / 62–88 mmHg',
+              hr:   { min: 58, max: 94, label: '58–94 bpm' }
+            },
+            vitals: { temp: 36.6, spo2: 98, sys: 118, dia: 76, hr: 72 },
+            radiation: { doseRate: 0.042, cumulative: 128.4 },
+            systems: { immune: 12, bone: 18, muscle: 15, mood: 14 },
+            sensitivity: { rad: 1.05, cardio: 1.0, spo2: 1.0, micro: 1.15, thermal: 0.95 },
+            spark: { temp: [], spo2: [], bp: [], hr: [] },
+            doseSeries: [],
+            doseLabels: []
+          },
+          {
+            id: 'sora',
+            name: 'Lt. Sora Takahashi',
+            role: 'Mission Specialist',
+            initials: 'ST',
+            personalBaseline: {
+              temp: { min: 35.9, max: 37.0, label: '35.9–37.0 °C' },
+              spo2: { min: 96, max: 100, label: '96–100 %' },
+              sys:  { min: 82, max: 120 },
+              dia:  { min: 56, max: 82 },
+              bpLabel: '82–120 / 56–82 mmHg',
+              hr:   { min: 50, max: 86, label: '50–86 bpm' }
+            },
+            vitals: { temp: 36.4, spo2: 99, sys: 106, dia: 68, hr: 56 },
+            radiation: { doseRate: 0.038, cumulative: 119.8 },
+            systems: { immune: 9, bone: 14, muscle: 11, mood: 10 },
+            sensitivity: { rad: 0.95, cardio: 1.12, spo2: 0.92, micro: 0.85, thermal: 1.05 },
+            spark: { temp: [], spo2: [], bp: [], hr: [] },
+            doseSeries: [],
+            doseLabels: []
+          },
+          {
+            id: 'marcus',
+            name: 'Dr. Marcus Thorne',
+            role: 'Crew Medical Officer',
+            initials: 'MT',
+            personalBaseline: {
+              temp: { min: 36.2, max: 37.3, label: '36.2–37.3 °C' },
+              spo2: { min: 95, max: 99, label: '95–99 %' },
+              sys:  { min: 94, max: 138 },
+              dia:  { min: 64, max: 92 },
+              bpLabel: '94–138 / 64–92 mmHg',
+              hr:   { min: 64, max: 98, label: '64–98 bpm' }
+            },
+            vitals: { temp: 36.8, spo2: 97, sys: 126, dia: 82, hr: 79 },
+            radiation: { doseRate: 0.046, cumulative: 136.2 },
+            systems: { immune: 16, bone: 21, muscle: 19, mood: 18 },
+            sensitivity: { rad: 1.12, cardio: 1.08, spo2: 1.1, micro: 1.2, thermal: 1.08 },
+            spark: { temp: [], spo2: [], bp: [], hr: [] },
+            doseSeries: [],
+            doseLabels: []
+          },
+          {
+            id: 'elena',
+            name: 'Dr. Elena Volkov',
+            role: 'Mission Commander',
+            initials: 'EV',
+            personalBaseline: {
+              temp: { min: 36.0, max: 37.1, label: '36.0–37.1 °C' },
+              spo2: { min: 96, max: 99, label: '96–99 %' },
+              sys:  { min: 86, max: 128 },
+              dia:  { min: 58, max: 86 },
+              bpLabel: '86–128 / 58–86 mmHg',
+              hr:   { min: 56, max: 92, label: '56–92 bpm' }
+            },
+            vitals: { temp: 36.5, spo2: 98, sys: 112, dia: 72, hr: 65 },
+            radiation: { doseRate: 0.041, cumulative: 124.5 },
+            systems: { immune: 11, bone: 16, muscle: 13, mood: 22 },
+            sensitivity: { rad: 1.02, cardio: 0.96, spo2: 1.04, micro: 0.95, thermal: 1.0 },
+            spark: { temp: [], spo2: [], bp: [], hr: [] },
+            doseSeries: [],
+            doseLabels: []
+          }
+        ];
+      }
+
+      function createInitialSensors() {
+        return [
+          { id: 'ecg', name: 'ECG Heart Sensor', status: 'Online', lastReading: null },
+          { id: 'tepc', name: 'TEPC Radiation Detector', status: 'Online', lastReading: null },
+          { id: 'spo2', name: 'SpO2 Pulse Oximeter', status: 'Online', lastReading: null },
+          { id: 'bp', name: 'Blood Pressure Cuff', status: 'Online', lastReading: null },
+          { id: 'temp', name: 'Core Temp Thermistor', status: 'Online', lastReading: null },
+          { id: 'bio', name: 'Biometric Telemetry Unit', status: 'Online', lastReading: null }
+        ];
+      }
+
+      /* -----------------------------------------------------------------------
+         GLOBAL APPLICATION STATE
+      ----------------------------------------------------------------------- */
+      const state = {
+        metSeconds: 122 * 86400 + 8 * 3600 + 38 * 60 + 6,
+        earthDistanceMkm: 212.2,
+        commsLost: false,
+        muted: false,
+        baselineMode: 'generic', // 'generic' | 'personal'
+        selectedCrewId: 'tariq',
+        scenario: 'normal', // 'normal' | 'storm' | 'shelter'
+        shelterElapsedSec: 0,
+        stormIntensity: 0, // 0 -> 1
+        crew: createInitialCrew(),
+        sensors: createInitialSensors(),
+        logs: [],
+        csvHistory: [],
+        lastSpokenKey: '',
+        lastTranscript: 'Voice advisory system armed (English synthesis ready).',
+        prevCrewLevels: {}
+      };
+
+      /* -----------------------------------------------------------------------
+         SEED SPARKLINES & 30-MIN REAL TIMESTAMPS
+      ----------------------------------------------------------------------- */
+      function formatHHMM(date) {
+        const hh = String(date.getHours()).padStart(2, '0');
+        const mm = String(date.getMinutes()).padStart(2, '0');
+        return `${hh}:${mm}`;
+      }
+
+      function seedTimeSeries(crewList) {
+        const now = Date.now();
+        for (const c of crewList) {
+          c.spark.temp = [];
+          c.spark.spo2 = [];
+          c.spark.bp = [];
+          c.spark.hr = [];
+          for (let i = 0; i < HISTORY_MAX_POINTS; i++) {
+            c.spark.temp.push(+(c.vitals.temp + (Math.random() - 0.5) * 0.16).toFixed(2));
+            c.spark.spo2.push(Math.round(c.vitals.spo2 + (Math.random() - 0.5) * 1.2));
+            c.spark.bp.push(Math.round(c.vitals.sys + (Math.random() - 0.5) * 4));
+            c.spark.hr.push(Math.round(c.vitals.hr + (Math.random() - 0.5) * 4));
+          }
+
+          c.doseLabels = [];
+          c.doseSeries = [];
+          for (let i = DOSE_CHART_POINTS - 1; i >= 0; i--) {
+            // 2.5 minute spacing covering the past 30 minutes
+            const t = new Date(now - i * 2.5 * 60 * 1000);
+            c.doseLabels.push(formatHHMM(t));
+            c.doseSeries.push(+(c.radiation.doseRate + (Math.random() - 0.5) * 0.012).toFixed(3));
+          }
+        }
+      }
+
+      /* -----------------------------------------------------------------------
+         3. VOICE ADVISORY MODULE (Web Speech API)
+      ----------------------------------------------------------------------- */
+      const voiceEngine = {
+        getVoice() {
+          if (!('speechSynthesis' in window)) return null;
+          const voices = window.speechSynthesis.getVoices() || [];
+          return (
+            voices.find(v => v.lang === 'en-US') ||
+            voices.find(v => v.lang && v.lang.startsWith('en')) ||
+            voices[0] ||
+            null
+          );
+        },
+
+        speak(text, eventKey) {
+          if (!text || eventKey === state.lastSpokenKey) return;
+          state.lastSpokenKey = eventKey;
+          state.lastTranscript = text;
+          renderTranscript();
+
+          if (state.muted || !('speechSynthesis' in window)) return;
+
+          try {
+            const utter = new SpeechSynthesisUtterance(text);
+            const chosen = this.getVoice();
+            if (chosen) utter.voice = chosen;
+            utter.lang = (chosen && chosen.lang) || 'en-US';
+            utter.rate = 1.02;
+            utter.pitch = 1.0;
+            window.speechSynthesis.speak(utter);
+          } catch (err) {
+            console.warn('Speech synthesis unavailable:', err);
+          }
+        },
+
+        silenceNow() {
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+          }
+        }
+      };
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = () => voiceEngine.getVoice();
+      }
+
+      /* -----------------------------------------------------------------------
+         4. RF-ENSEMBLE v2.4 RISK ENGINE & EXPLAINABLE AI WEIGHTS
+      ----------------------------------------------------------------------- */
+      function getActiveBaseline(astronaut) {
+        return state.baselineMode === 'personal' ? astronaut.personalBaseline : GENERIC_BASELINES;
+      }
+
+      function evaluateAstronaut(astronaut) {
+        const base = getActiveBaseline(astronaut);
+        const v = astronaut.vitals;
+        const sens = astronaut.sensitivity;
+
+        // 1) Radiation Spike (SPE) contribution (0 - 52 pts)
+        const doseExcess = Math.max(0, astronaut.radiation.doseRate - 0.06);
+        const radPts = Math.min(52, Math.round((doseExcess * 52 + (astronaut.radiation.cumulative > 300 ? 4 : 0)) * sens.rad));
+
+        // 2) SpO2 Drop contribution (0 - 24 pts)
+        const spo2Deficit = Math.max(0, base.spo2.min - v.spo2);
+        const spo2NearLow = v.spo2 <= base.spo2.min ? 3 : 0;
+        const spo2Pts = Math.min(24, Math.round((spo2Deficit * 4.5 + spo2NearLow) * sens.spo2));
+
+        // 3) HR & BP Elevation contribution (0 - 22 pts)
+        const hrHigh = Math.max(0, v.hr - base.hr.max);
+        const hrLow = Math.max(0, base.hr.min - v.hr);
+        const sysHigh = Math.max(0, v.sys - base.sys.max);
+        const diaHigh = Math.max(0, v.dia - base.dia.max);
+        const cardioRaw = hrHigh * 0.45 + hrLow * 0.4 + sysHigh * 0.35 + diaHigh * 0.4;
+        const baselineHrStress = Math.max(0, (v.hr - (base.hr.min + base.hr.max) / 2) * 0.12);
+        const cardioPts = Math.min(22, Math.round((cardioRaw + baselineHrStress) * sens.cardio));
+
+        // 4) Microgravity (Muscle / Bone) contribution (3 - 14 pts)
+        const microRaw = (astronaut.systems.bone + astronaut.systems.muscle) * 0.16;
+        const microPts = Math.min(14, Math.max(3, Math.round(microRaw * sens.micro)));
+
+        // 5) Thermal Drift contribution (1 - 12 pts)
+        const tempHigh = Math.max(0, v.temp - base.temp.max);
+        const tempLow = Math.max(0, base.temp.min - v.temp);
+        const thermalRaw = (tempHigh + tempLow) * 11 + Math.abs(v.temp - 36.6) * 2.5;
+        const thermalPts = Math.min(12, Math.max(1, Math.round(thermalRaw * sens.thermal)));
+
+        const composite = Math.min(100, Math.max(4, radPts + spo2Pts + cardioPts + microPts + thermalPts));
+
+        let level = 'LOW';
+        let action = 'Continue normal mission schedule';
+        if (composite >= 67) {
+          level = 'HIGH';
+          action = 'Proceed to Storm Shelter and notify Mission Control immediately';
+        } else if (composite >= 34) {
+          level = 'MEDIUM';
+          action = 'Reduce EVA duration and re-check vitals every 2 hours';
+        }
+
+        const features = [
+          { key: 'rad', label: 'Radiation Spike (SPE)', pts: radPts, max: 52, color: radPts > 20 ? '#ef4444' : '#22d3ee' },
+          { key: 'spo2', label: 'SpO2 Saturation Drop', pts: spo2Pts, max: 24, color: spo2Pts > 10 ? '#f59e0b' : '#38bdf8' },
+          { key: 'cardio', label: 'HR & BP Elevation', pts: cardioPts, max: 22, color: cardioPts > 10 ? '#f59e0b' : '#14b8a6' },
+          { key: 'micro', label: 'Microgravity (Muscle/Bone)', pts: microPts, max: 14, color: '#a78bfa' },
+          { key: 'thermal', label: 'Thermal Drift', pts: thermalPts, max: 12, color: thermalPts > 5 ? '#f59e0b' : '#10b981' }
+        ].sort((a, b) => b.pts - a.pts);
+
+        return { score: composite, level, action, features };
+      }
+
+      /* -----------------------------------------------------------------------
+         PERSISTENCE & LOGGING
+      ----------------------------------------------------------------------- */
+      function loadPersistedData() {
+        try {
+          const rawLogs = localStorage.getItem(STORAGE_KEY_LOGS);
+          if (rawLogs) state.logs = JSON.parse(rawLogs);
+
+          const rawState = localStorage.getItem(STORAGE_KEY_STATE);
+          if (rawState) {
+            const saved = JSON.parse(rawState);
+            if (typeof saved.metSeconds === 'number') state.metSeconds = saved.metSeconds;
+            if (typeof saved.muted === 'boolean') state.muted = saved.muted;
+            if (saved.baselineMode) state.baselineMode = saved.baselineMode;
+            if (saved.selectedCrewId) state.selectedCrewId = saved.selectedCrewId;
+          }
+        } catch (e) {
+          console.warn('localStorage load failed:', e);
+        }
+
+        if (state.logs.length === 0) {
+          addLogEntry(
+            state.crew[0].name,
+            'LOW',
+            'Astro Guardian telemetry initialized. All systems nominal.',
+            'Continue normal mission schedule',
+            false
+          );
+        }
+      }
+
+      function persistData() {
+        try {
+          localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(state.logs.slice(0, 60)));
+          localStorage.setItem(STORAGE_KEY_STATE, JSON.stringify({
+            metSeconds: state.metSeconds,
+            muted: state.muted,
+            baselineMode: state.baselineMode,
+            selectedCrewId: state.selectedCrewId
+          }));
+        } catch (e) {
+          // Ignore quota issues cleanly
+        }
+      }
+
+      function addLogEntry(astronautName, level, message, action, shouldRender = true) {
+        const now = new Date();
+        const entry = {
+          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          astronaut: astronautName,
+          level,
+          message,
+          action
+        };
+        state.logs.unshift(entry);
+        if (state.logs.length > 60) state.logs.pop();
+        persistData();
+        if (shouldRender) renderAlertLog();
+      }
+
+      /* -----------------------------------------------------------------------
+         SIMULATION STEP (Runs every 1 second)
+      ----------------------------------------------------------------------- */
+      function clamp(val, min, max) {
+        return Math.min(max, Math.max(min, val));
+      }
+
+      function stepSimulation() {
+        state.metSeconds += 1;
+        // Gentle orbital distance drift
+        state.earthDistanceMkm = +(212.2 + Math.sin(state.metSeconds / 120) * 0.3).toFixed(1);
+
+        if (state.scenario === 'storm') {
+          state.stormIntensity = clamp(state.stormIntensity + 0.16, 0, 1);
+        } else if (state.scenario === 'shelter') {
+          state.shelterElapsedSec += 1;
+          // Decay rapidly over ~10 seconds
+          state.stormIntensity = clamp(state.stormIntensity - 0.11, 0, 1);
+          if (state.shelterElapsedSec >= 10 && state.stormIntensity === 0) {
+            document.getElementById('shelterCountdown').textContent = 'Shelter Shielding: Stabilized';
+          } else {
+            const pct = Math.min(100, Math.round((state.shelterElapsedSec / 10) * 100));
+            document.getElementById('shelterCountdown').textContent = `Shelter Shielding: ${pct}%`;
+          }
+        } else {
+          state.stormIntensity = clamp(state.stormIntensity - 0.08, 0, 1);
+          document.getElementById('shelterCountdown').textContent = '';
+        }
+
+        const now = new Date();
+        const hhmm = formatHHMM(now);
+
+        for (const c of state.crew) {
+          const base = c.personalBaseline;
+          const targetHrMid = (base.hr.min + base.hr.max) / 2;
+          const targetSysMid = (base.sys.min + base.sys.max) / 2;
+          const targetDiaMid = (base.dia.min + base.dia.max) / 2;
+          const targetTempMid = (base.temp.min + base.temp.max) / 2;
+
+          // Dose rate target based on storm intensity (0.04 normal -> 0.85-1.15 storm)
+          const targetDose = state.stormIntensity > 0.05
+            ? 0.045 + state.stormIntensity * (0.82 * c.sensitivity.rad)
+            : 0.036 + Math.random() * 0.022;
+
+          c.radiation.doseRate = +clamp(
+            c.radiation.doseRate + (targetDose - c.radiation.doseRate) * 0.35 + (Math.random() - 0.5) * 0.025,
+            0.02,
+            1.20
+          ).toFixed(3);
+
+          // Accumulate realistic dose (mSv/hr divided by 3600s, slightly scaled for visible demo movement during storm)
+          const accumStep = (c.radiation.doseRate / 3600) * (state.stormIntensity > 0.2 ? 45 : 1);
+          c.radiation.cumulative = +(c.radiation.cumulative + accumStep).toFixed(2);
+
+          // Physiological response to storm stress vs normal baseline drift
+          const stress = state.stormIntensity;
+          const targetTemp = targetTempMid + stress * 0.85 * c.sensitivity.thermal;
+          const targetSpo2 = 98.2 - stress * 5.2 * c.sensitivity.spo2;
+          const targetHr = targetHrMid + stress * 34 * c.sensitivity.cardio;
+          const targetSys = targetSysMid + stress * 28 * c.sensitivity.cardio;
+          const targetDia = targetDiaMid + stress * 16 * c.sensitivity.cardio;
+
+          c.vitals.temp = +clamp(c.vitals.temp + (targetTemp - c.vitals.temp) * 0.22 + (Math.random() - 0.5) * 0.06, 35.4, 39.0).toFixed(2);
+          c.vitals.spo2 = Math.round(clamp(c.vitals.spo2 + (targetSpo2 - c.vitals.spo2) * 0.24 + (Math.random() - 0.5) * 0.8, 86, 100));
+          c.vitals.hr = Math.round(clamp(c.vitals.hr + (targetHr - c.vitals.hr) * 0.22 + (Math.random() - 0.5) * 2.4, 46, 145));
+          c.vitals.sys = Math.round(clamp(c.vitals.sys + (targetSys - c.vitals.sys) * 0.2 + (Math.random() - 0.5) * 2.8, 80, 175));
+          c.vitals.dia = Math.round(clamp(c.vitals.dia + (targetDia - c.vitals.dia) * 0.2 + (Math.random() - 0.5) * 2.0, 52, 112));
+
+          // Body system strain points (distinct per astronaut)
+          c.systems.immune = Math.round(clamp(10 + stress * 24 * c.sensitivity.rad + (c.id === 'marcus' ? 5 : 0), 5, 45));
+          c.systems.bone = Math.round(clamp(14 + (c.id === 'tariq' ? 4 : c.id === 'marcus' ? 7 : 0) + stress * 6, 8, 35));
+          c.systems.muscle = Math.round(clamp(12 + (c.id === 'marcus' ? 6 : 2) + stress * 8, 7, 36));
+          c.systems.mood = Math.round(clamp(11 + stress * 30 * c.sensitivity.thermal + (c.id === 'elena' ? 8 : 0), 6, 50));
+
+          // Push sparklines
+          c.spark.temp.push(c.vitals.temp);
+          c.spark.spo2.push(c.vitals.spo2);
+          c.spark.bp.push(c.vitals.sys);
+          c.spark.hr.push(c.vitals.hr);
+          for (const k of ['temp', 'spo2', 'bp', 'hr']) {
+            if (c.spark[k].length > HISTORY_MAX_POINTS) c.spark[k].shift();
+          }
+
+          // Update 30-min dose series every 3 ticks with real HH:MM timestamps
+          if (state.metSeconds % 3 === 0) {
+            c.doseLabels.push(hhmm);
+            c.doseSeries.push(c.radiation.doseRate);
+            if (c.doseLabels.length > DOSE_CHART_POINTS) {
+              c.doseLabels.shift();
+              c.doseSeries.shift();
+            }
+          }
+
+          // Evaluate level transitions for logging & voice advisories
+          const evalRes = evaluateAstronaut(c);
+          const prevLevel = state.prevCrewLevels[c.id] || 'LOW';
+
+          if (evalRes.level !== prevLevel) {
+            state.prevCrewLevels[c.id] = evalRes.level;
+            addLogEntry(
+              c.name,
+              evalRes.level,
+              `${evalRes.level === 'HIGH' ? 'Critical' : evalRes.level === 'MEDIUM' ? 'Elevated' : 'Nominal'} risk score (${evalRes.score}/100) detected`,
+              `Action: ${evalRes.action}`
+            );
+
+            // Voice fires ONLY on level changes for the currently viewed astronaut
+            if (c.id === state.selectedCrewId) {
+              triggerVoiceForLevelChange(prevLevel, evalRes.level);
+            }
+          }
+
+          // Record CSV telemetry every 2 ticks for active astronaut
+          if (c.id === state.selectedCrewId && state.metSeconds % 2 === 0) {
+            state.csvHistory.push({
+              timestamp: now.toISOString(),
+              astronaut: c.name,
+              role: c.role,
+              dose_rate_mSv_hr: c.radiation.doseRate,
+              cumulative_dose_mSv: c.radiation.cumulative,
+              temp_C: c.vitals.temp,
+              spo2_pct: c.vitals.spo2,
+              bp_mmHg: `${c.vitals.sys}/${c.vitals.dia}`,
+              hr_bpm: c.vitals.hr,
+              risk_score: evalRes.score,
+              alert_level: evalRes.level
+            });
+            if (state.csvHistory.length > 500) state.csvHistory.shift();
+          }
+        }
+
+        if (state.metSeconds % 5 === 0) persistData();
+        renderAll();
+      }
+
+      function triggerVoiceForLevelChange(prevLevel, newLevel) {
+        if (newLevel === 'HIGH') {
+          voiceEngine.speak(
+            'Warning: High risk detected. Proceed to Storm Shelter and notify Mission Control immediately.',
+            `HIGH_${state.scenario}_${state.selectedCrewId}`
+          );
+        } else if (newLevel === 'MEDIUM' && prevLevel === 'LOW') {
+          voiceEngine.speak(
+            'Caution: Risk level is medium. Reduce EVA duration and monitor vitals.',
+            `MED_${state.scenario}_${state.selectedCrewId}`
+          );
+        } else if (newLevel === 'LOW' && (prevLevel === 'HIGH' || prevLevel === 'MEDIUM')) {
+          voiceEngine.speak(
+            'Status stabilized. Risk level is now low.',
+            `LOW_RES_${state.scenario}_${state.selectedCrewId}`
+          );
+        }
+      }
+
+      /* -----------------------------------------------------------------------
+         5. CHARTS INITIALIZATION (Chart.js CDN with Safe Fallback)
+      ----------------------------------------------------------------------- */
+      const charts = {
+        sparks: {},
+        dose30Min: null,
+        history: null
+      };
+
+      function createSparkChart(canvasId, color) {
+        if (typeof Chart === 'undefined') return null;
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        return new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: Array(HISTORY_MAX_POINTS).fill(''),
+            datasets: [{
+              data: [],
+              borderColor: color,
+              backgroundColor: `${color}22`,
+              borderWidth: 2,
+              pointRadius: 0,
+              fill: true,
+              tension: 0.35
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+              x: { display: false },
+              y: { display: false }
+            }
+          }
+        });
+      }
+
+      // Custom Chart.js plugin for Mission Timeline event annotations & 600 mSv label
+      const missionAnnotationPlugin = {
+        id: 'missionAnnotations',
+        afterDatasetsDraw(chart) {
+          const { ctx, chartArea, scales } = chart;
+          if (!chartArea || !scales.x || !scales.y) return;
+
+          const labels = chart.data.labels;
+          const markers = [
+            { sol: 'Sol 127', text: 'Solar Storm (Day 127)', color: '#ef4444', yOffset: 16 },
+            { sol: 'Sol 128', text: 'Shelter Protocol', color: '#14b8a6', yOffset: 38 },
+            { sol: 'Sol 141', text: 'Solar Storm (Day 141)', color: '#ef4444', yOffset: 16 }
+          ];
+
+          ctx.save();
+          for (const m of markers) {
+            const idx = labels.indexOf(m.sol);
+            if (idx === -1) continue;
+            const x = scales.x.getPixelForValue(idx);
+
+            // Vertical dashed event marker
+            ctx.beginPath();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = m.color;
+            ctx.lineWidth = 1.5;
+            ctx.moveTo(x, chartArea.top);
+            ctx.lineTo(x, chartArea.bottom);
+            ctx.stroke();
+
+            // Event Pill Label
+            ctx.setLineDash([]);
+            ctx.font = '600 10px Inter, sans-serif';
+            const textW = ctx.measureText(m.text).width + 10;
+            const boxX = Math.min(Math.max(x - textW / 2, chartArea.left + 2), chartArea.right - textW - 2);
+            const boxY = chartArea.top + m.yOffset;
+
+            ctx.fillStyle = 'rgba(7, 13, 31, 0.9)';
+            ctx.strokeStyle = m.color;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(boxX, boxY, textW, 18, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillText(m.text, boxX + 5, boxY + 12.5);
+          }
+
+          // Career Limit 600 mSv label
+          const y600 = scales.y.getPixelForValue(600);
+          ctx.font = '700 10px monospace';
+          ctx.fillStyle = '#fca5a5';
+          ctx.fillText('Career Limit: 600 mSv', chartArea.left + 8, y600 - 6);
+          ctx.restore();
+        }
+      };
+
+      function initCharts() {
+        if (typeof Chart === 'undefined') return;
+
+        charts.sparks.temp = createSparkChart('sparkTemp', '#22d3ee');
+        charts.sparks.spo2 = createSparkChart('sparkSpo2', '#10b981');
+        charts.sparks.bp = createSparkChart('sparkBp', '#a78bfa');
+        charts.sparks.hr = createSparkChart('sparkHr', '#38bdf8');
+
+        // 30-Minute Dose Rate Chart
+        const doseCtx = document.getElementById('dose30MinChart').getContext('2d');
+        charts.dose30Min = new Chart(doseCtx, {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [{
+              label: 'Dose Rate (mSv/hr)',
+              data: [],
+              borderColor: '#22d3ee',
+              backgroundColor: 'rgba(34, 211, 238, 0.16)',
+              borderWidth: 2.5,
+              pointRadius: 3,
+              pointBackgroundColor: '#22d3ee',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: {
+                ticks: { color: '#94a3b8', font: { size: 10, family: 'monospace' }, maxRotation: 0 },
+                grid: { color: 'rgba(148,163,184,0.08)' }
+              },
+              y: {
+                beginAtZero: true,
+                suggestedMax: 0.15,
+                ticks: { color: '#94a3b8', font: { size: 10, family: 'monospace' } },
+                grid: { color: 'rgba(148,163,184,0.1)' }
+              }
+            }
+          }
+        });
+
+        // Mission Timeline Chart (Sol 112 -> Sol 142) with VISIBLE upward spikes at Sol 127 & Sol 141
+        const histLabels = [];
+        const histDose = [];
+        let cum = 96;
+        for (let sol = 112; sol <= 142; sol++) {
+          histLabels.push(`Sol ${sol}`);
+          if (sol === 127) {
+            cum += 44; // Visible Solar Storm Spike #1
+          } else if (sol === 128) {
+            cum += 1.2; // Shelter Protocol flattening
+          } else if (sol === 141) {
+            cum += 52; // Visible Solar Storm Spike #2
+          } else if (sol === 142) {
+            cum += 6;
+          } else {
+            cum += 1.4; // Normal daily cosmic ray accumulation
+          }
+          histDose.push(+cum.toFixed(1));
+        }
+
+        const histCtx = document.getElementById('historyChart').getContext('2d');
+        charts.history = new Chart(histCtx, {
+          type: 'line',
+          data: {
+            labels: histLabels,
+            datasets: [
+              {
+                label: 'Cumulative Dose (mSv)',
+                data: histDose,
+                borderColor: '#22d3ee',
+                backgroundColor: 'rgba(34, 211, 238, 0.14)',
+                borderWidth: 2.5,
+                pointRadius: (ctx) => {
+                  const lbl = histLabels[ctx.dataIndex];
+                  return (lbl === 'Sol 127' || lbl === 'Sol 128' || lbl === 'Sol 141') ? 5 : 1.5;
+                },
+                pointBackgroundColor: (ctx) => {
+                  const lbl = histLabels[ctx.dataIndex];
+                  if (lbl === 'Sol 127' || lbl === 'Sol 141') return '#ef4444';
+                  if (lbl === 'Sol 128') return '#14b8a6';
+                  return '#22d3ee';
+                },
+                fill: true,
+                tension: 0.15
+              },
+              {
+                label: '600 mSv Career Limit',
+                data: Array(histLabels.length).fill(600),
+                borderColor: '#ef4444',
+                borderDash: [6, 5],
+                borderWidth: 1.8,
+                pointRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: { color: '#cbd5e1', font: { size: 11 } }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: '#94a3b8', font: { size: 10 }, maxTicksLimit: 8 },
+                grid: { color: 'rgba(148,163,184,0.08)' }
+              },
+              y: {
+                min: 0,
+                max: 650,
+                ticks: { color: '#94a3b8', font: { size: 10, family: 'monospace' } },
+                grid: { color: 'rgba(148,163,184,0.1)' }
+              }
+            }
+          },
+          plugins: [missionAnnotationPlugin]
+        });
+      }
+
+      /* -----------------------------------------------------------------------
+         UI RENDERING FUNCTIONS
+      ----------------------------------------------------------------------- */
+      function formatMET(totalSeconds) {
+        const d = Math.floor(totalSeconds / 86400);
+        const h = Math.floor((totalSeconds % 86400) / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        const pad = n => String(n).padStart(2, '0');
+        return `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`;
+      }
+
+      function renderHeader() {
+        document.getElementById('metTimer').textContent = formatMET(state.metSeconds);
+
+        const commsPill = document.getElementById('commsPill');
+        const commsDot = document.getElementById('commsDot');
+        const commsLat = document.getElementById('commsLatency');
+        const syncNote = document.getElementById('syncNote');
+        const btnComms = document.getElementById('btnCommsLoss');
+
+        if (state.commsLost) {
+          commsPill.classList.add('comms-lost');
+          commsDot.className = 'dot dot-red';
+          commsLat.textContent = 'No Signal — Comms Lost';
+          syncNote.classList.add('visible');
+          btnComms.classList.add('btn-active-warning');
+          btnComms.textContent = 'Restore Earth Link';
+        } else {
+          commsPill.classList.remove('comms-lost');
+          commsDot.className = 'dot dot-green';
+          const delayMin = (state.earthDistanceMkm / 18).toFixed(1); // ~speed of light approximation
+          commsLat.textContent = `${delayMin} min — ${state.earthDistanceMkm}M km`;
+          syncNote.classList.remove('visible');
+          btnComms.classList.remove('btn-active-warning');
+          btnComms.textContent = 'Simulate Comms Loss';
+        }
+
+        const speActive = state.scenario === 'storm' || state.stormIntensity > 0.25;
+        document.getElementById('speHeaderBadge').style.display = speActive ? 'inline-flex' : 'none';
+        document.getElementById('speFluxTag').classList.toggle('visible', speActive);
+
+        const btnMute = document.getElementById('btnMute');
+        document.getElementById('muteIcon').textContent = state.muted ? '🔇' : '🔊';
+        document.getElementById('muteLabel').textContent = state.muted ? 'Muted' : 'Voice On';
+        btnMute.classList.toggle('btn-muted', state.muted);
+      }
+
+      function renderCrewSelector() {
+        const grid = document.getElementById('crewGrid');
+        grid.innerHTML = '';
+
+        for (const c of state.crew) {
+          const ev = evaluateAstronaut(c);
+          const chipClass = ev.level === 'HIGH' ? 'chip-high' : ev.level === 'MEDIUM' ? 'chip-medium' : 'chip-low';
+          const card = document.createElement('div');
+          card.className = `crew-card ${c.id === state.selectedCrewId ? 'selected' : ''}`;
+          card.innerHTML = `
+            <div class="avatar">${c.initials}</div>
+            <div class="crew-info">
+              <div class="crew-name" title="${c.name}">${c.name}</div>
+              <div class="crew-role">${c.role}</div>
+            </div>
+            <span class="risk-chip ${chipClass}">${ev.score}</span>
+          `;
+          card.addEventListener('click', () => {
+            state.selectedCrewId = c.id;
+            persistData();
+            renderAll();
+          });
+          grid.appendChild(card);
+        }
+
+        const scenarioLabels = {
+          normal: '[Normal Operations]',
+          storm: '[Solar Particle Event]',
+          shelter: '[Storm Shelter Protocol]'
+        };
+        document.getElementById('activeScenarioPill').textContent = scenarioLabels[state.scenario] || '';
+      }
+
+      function renderHeroAndXAI(astronaut, evalRes) {
+        // Banner
+        const banner = document.getElementById('advisoryBanner');
+        const badge = document.getElementById('advisoryBadge');
+        const text = document.getElementById('advisoryText');
+        const astroSpan = document.getElementById('advisoryAstronaut');
+
+        banner.className = 'advisory-banner';
+        if (evalRes.level === 'HIGH') banner.classList.add('level-high');
+        else if (evalRes.level === 'MEDIUM') banner.classList.add('level-medium');
+
+        badge.className = `advisory-badge ${evalRes.level === 'HIGH' ? 'chip-high' : evalRes.level === 'MEDIUM' ? 'chip-medium' : 'chip-low'}`;
+        badge.textContent = `${evalRes.level} RISK`;
+        text.textContent = evalRes.action;
+        astroSpan.textContent = `Monitoring: ${astronaut.name} (${astronaut.role})`;
+
+        // Gauge
+        const gaugePanel = document.getElementById('gaugePanel');
+        gaugePanel.className = 'panel gauge-panel';
+        if (evalRes.level === 'HIGH') gaugePanel.classList.add('high-glow');
+        else if (evalRes.level === 'MEDIUM') gaugePanel.classList.add('medium-glow');
+
+        const arcLength = 377;
+        const offset = arcLength - (evalRes.score / 100) * arcLength;
+        const arcEl = document.getElementById('gaugeArcFill');
+        const needleEl = document.getElementById('gaugeNeedle');
+        const scoreEl = document.getElementById('gaugeScoreVal');
+        const levelChip = document.getElementById('gaugeLevelChip');
+
+        const color = evalRes.level === 'HIGH' ? '#ef4444' : evalRes.level === 'MEDIUM' ? '#f59e0b' : '#10b981';
+        arcEl.style.strokeDashoffset = offset;
+        arcEl.style.stroke = color;
+        arcEl.setAttribute('filter', evalRes.level === 'HIGH' ? 'url(#redGlow)' : 'none');
+
+        const deg = -90 + (evalRes.score / 100) * 180;
+        needleEl.setAttribute('transform', `rotate(${deg.toFixed(1)})`);
+
+        scoreEl.textContent = evalRes.score;
+        scoreEl.style.color = color;
+        document.getElementById('gaugeActionText').textContent = evalRes.action;
+        levelChip.className = `risk-chip ${evalRes.level === 'HIGH' ? 'chip-high' : evalRes.level === 'MEDIUM' ? 'chip-medium' : 'chip-low'}`;
+        levelChip.textContent = evalRes.level;
+
+        // Explainable AI
+        const baselineLabel = state.baselineMode === 'personal' ? 'Personalized' : 'Mission Generic';
+        document.getElementById('xaiBaselineTag').textContent = `Baseline: ${baselineLabel}`;
+        const xaiList = document.getElementById('xaiList');
+        xaiList.innerHTML = '';
+
+        for (const f of evalRes.features) {
+          const pct = Math.min(100, Math.round((f.pts / f.max) * 100));
+          const row = document.createElement('div');
+          row.className = 'xai-item';
+          row.innerHTML = `
+            <div class="xai-row">
+              <span class="xai-name">${f.label}</span>
+              <span class="xai-pts">+${f.pts} pts</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: ${pct}%; background: ${f.color};"></div>
+            </div>
+          `;
+          xaiList.appendChild(row);
+        }
+        document.getElementById('xaiCompositeVal').textContent = `${evalRes.score} / 100 pts`;
+      }
+
+      function setVitalCardState(cardId, statusId, isWarn, isCrit) {
+        const card = document.getElementById(cardId);
+        const chip = document.getElementById(statusId);
+        card.classList.remove('state-warning', 'state-critical');
+        if (isCrit) {
+          card.classList.add('state-critical');
+          chip.className = 'risk-chip chip-high';
+          chip.textContent = 'Critical';
+        } else if (isWarn) {
+          card.classList.add('state-warning');
+          chip.className = 'risk-chip chip-medium';
+          chip.textContent = 'Out of Range';
+        } else {
+          chip.className = 'risk-chip chip-low';
+          chip.textContent = 'Nominal';
+        }
+      }
+
+      function renderVitalsAndSystems(astronaut) {
+        const base = getActiveBaseline(astronaut);
+        const v = astronaut.vitals;
+        document.getElementById('vitalsBaselineLabel').textContent =
+          `Thresholds: ${state.baselineMode === 'personal' ? `Personalized (${astronaut.initials})` : 'Mission Generic'}`;
+
+        // Temp
+        document.getElementById('rangeTemp').textContent = base.temp.label;
+        document.getElementById('valTemp').textContent = v.temp.toFixed(1);
+        const tempOut = v.temp < base.temp.min || v.temp > base.temp.max;
+        const tempCrit = v.temp < base.temp.min - 0.6 || v.temp > base.temp.max + 0.6;
+        setVitalCardState('cardTemp', 'statusTemp', tempOut, tempCrit);
+
+        // SpO2
+        document.getElementById('rangeSpo2').textContent = base.spo2.label;
+        document.getElementById('valSpo2').textContent = v.spo2;
+        const spo2Out = v.spo2 < base.spo2.min;
+        const spo2Crit = v.spo2 <= 91;
+        setVitalCardState('cardSpo2', 'statusSpo2', spo2Out, spo2Crit);
+
+        // Blood Pressure
+        document.getElementById('rangeBp').textContent = base.bpLabel;
+        document.getElementById('valBp').textContent = `${v.sys}/${v.dia}`;
+        const bpOut = v.sys < base.sys.min || v.sys > base.sys.max || v.dia < base.dia.min || v.dia > base.dia.max;
+        const bpCrit = v.sys > base.sys.max + 15 || v.dia > base.dia.max + 10;
+        setVitalCardState('cardBp', 'statusBp', bpOut, bpCrit);
+
+        // Heart Rate
+        document.getElementById('rangeHr').textContent = base.hr.label;
+        document.getElementById('valHr').textContent = v.hr;
+        const hrOut = v.hr < base.hr.min || v.hr > base.hr.max;
+        const hrCrit = v.hr > base.hr.max + 20 || v.hr < base.hr.min - 10;
+        setVitalCardState('cardHr', 'statusHr', hrOut, hrCrit);
+
+        // Update sparklines
+        if (typeof Chart !== 'undefined' && charts.sparks.temp) {
+          charts.sparks.temp.data.datasets[0].data = astronaut.spark.temp;
+          charts.sparks.temp.update('none');
+          charts.sparks.spo2.data.datasets[0].data = astronaut.spark.spo2;
+          charts.sparks.spo2.update('none');
+          charts.sparks.bp.data.datasets[0].data = astronaut.spark.bp;
+          charts.sparks.bp.update('none');
+          charts.sparks.hr.data.datasets[0].data = astronaut.spark.hr;
+          charts.sparks.hr.update('none');
+        }
+
+        // Body Systems Panel
+        const sysList = document.getElementById('bodySystemsList');
+        sysList.innerHTML = '';
+        const systemsMeta = [
+          { name: 'Immune System', pts: astronaut.systems.immune, max: 45 },
+          { name: 'Bone Mineral Density', pts: astronaut.systems.bone, max: 35 },
+          { name: 'Muscle Mass', pts: astronaut.systems.muscle, max: 36 },
+          { name: 'Mood / Cognitive Stress', pts: astronaut.systems.mood, max: 50 }
+        ];
+
+        for (const s of systemsMeta) {
+          const pct = Math.min(100, Math.round((s.pts / s.max) * 100));
+          const barColor = pct > 65 ? '#ef4444' : pct > 42 ? '#f59e0b' : '#14b8a6';
+          const item = document.createElement('div');
+          item.className = 'system-item';
+          item.innerHTML = `
+            <div class="system-top">
+              <span style="font-weight: 600;">${s.name}</span>
+              <span class="mono" style="color: ${barColor}; font-weight: 700;">${s.pts} pts</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: ${pct}%; background: ${barColor};"></div>
+            </div>
+          `;
+          sysList.appendChild(item);
+        }
+      }
+
+      function renderRadiation(astronaut) {
+        const rate = astronaut.radiation.doseRate;
+        const cum = astronaut.radiation.cumulative;
+        const remainingMsv = Math.max(0, CAREER_LIMIT_MSV - cum);
+        const pct = Math.min(100, (cum / CAREER_LIMIT_MSV) * 100);
+
+        const rateEl = document.getElementById('valDoseRate');
+        rateEl.innerHTML = `${rate.toFixed(3)} <span style="font-size:0.85rem;color:var(--text-secondary);">mSv/hr</span>`;
+        rateEl.style.color = rate >= 0.3 ? 'var(--red)' : rate >= 0.12 ? 'var(--amber)' : 'var(--cyan)';
+        document.getElementById('doseRateNote').textContent =
+          rate >= 0.3 ? 'High-energy Solar Proton Flux!' : rate >= 0.12 ? 'Elevated solar activity' : 'Nominal background GCR';
+
+        // Safe Time Remaining: (600 - cumulative) / currentRate
+        const safeHoursTotal = rate > 0.001 ? remainingMsv / rate : 99999;
+        const hrs = Math.floor(safeHoursTotal);
+        const mins = Math.floor((safeHoursTotal - hrs) * 60);
+        const safeEl = document.getElementById('valSafeTime');
+        safeEl.textContent = `${hrs.toLocaleString()}h ${String(mins).padStart(2, '0')}m`;
+        safeEl.style.color = safeHoursTotal < 800 ? 'var(--red)' : safeHoursTotal < 2500 ? 'var(--amber)' : 'var(--green)';
+
+        document.getElementById('valCumulativeDose').textContent = `${cum.toFixed(2)} / ${CAREER_LIMIT_MSV} mSv (${pct.toFixed(1)}%)`;
+        const bar = document.getElementById('radBudgetBar');
+        bar.style.width = `${pct.toFixed(1)}%`;
+        bar.style.background = pct > 75
+          ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
+          : 'linear-gradient(90deg, #10b981, #22d3ee)';
+        document.getElementById('radRemainingMsv').textContent = `${remainingMsv.toFixed(2)} mSv remaining budget`;
+
+        if (typeof Chart !== 'undefined' && charts.dose30Min) {
+          charts.dose30Min.data.labels = astronaut.doseLabels;
+          charts.dose30Min.data.datasets[0].data = astronaut.doseSeries;
+          charts.dose30Min.data.datasets[0].borderColor = rate >= 0.3 ? '#ef4444' : '#22d3ee';
+          charts.dose30Min.data.datasets[0].backgroundColor = rate >= 0.3 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 211, 238, 0.16)';
+          charts.dose30Min.update('none');
+        }
+      }
+
+      function renderSensors() {
+        const list = document.getElementById('sensorList');
+        list.innerHTML = '';
+        let onlineCount = 0;
+
+        for (const s of state.sensors) {
+          if (s.status === 'Online') onlineCount++;
+          const stLower = s.status.toLowerCase();
+          const label = s.status === 'Offline' && s.lastReading
+            ? `Offline (Last reading ${s.lastReading})`
+            : s.status;
+
+          const item = document.createElement('div');
+          item.className = 'sensor-item';
+          item.innerHTML = `
+            <span class="sensor-name">${s.name}</span>
+            <span class="sensor-status status-${stLower}">
+              <span class="pulse-dot ${stLower}"></span>
+              ${label}
+            </span>
+          `;
+          list.appendChild(item);
+        }
+        document.getElementById('sensorSummary').textContent = `${onlineCount}/${state.sensors.length} Online`;
+      }
+
+      function renderAlertLog() {
+        const list = document.getElementById('alertLogList');
+        list.innerHTML = '';
+        document.getElementById('logCountBadge').textContent = `${state.logs.length} entries`;
+
+        for (const entry of state.logs) {
+          const chipClass = entry.level === 'HIGH' ? 'chip-high' : entry.level === 'MEDIUM' ? 'chip-medium' : 'chip-low';
+          const div = document.createElement('div');
+          div.className = `log-entry level-${entry.level}`;
+          div.innerHTML = `
+            <div class="log-meta">
+              <span>${entry.time} — ${entry.astronaut}</span>
+              <span class="risk-chip ${chipClass}" style="padding:1px 6px;font-size:0.65rem;">${entry.level}</span>
+            </div>
+            <div class="log-msg">${entry.message}</div>
+            <div class="log-action">${entry.action}</div>
+          `;
+          list.appendChild(div);
+        }
+      }
+
+      function renderTranscript() {
+        document.getElementById('voiceTranscript').textContent = `🔊 Just spoken: "${state.lastTranscript}"`;
+      }
+
+      function renderAll() {
+        const active = state.crew.find(c => c.id === state.selectedCrewId) || state.crew[0];
+        const evalRes = evaluateAstronaut(active);
+
+        renderHeader();
+        renderCrewSelector();
+        renderHeroAndXAI(active, evalRes);
+        renderVitalsAndSystems(active);
+        renderRadiation(active);
+        renderSensors();
+      }
+
+      /* -----------------------------------------------------------------------
+         SCENARIO & BUTTON HANDLERS
+      ----------------------------------------------------------------------- */
+      function setScenarioButtonUI(scenario) {
+        document.getElementById('btnNormal').classList.toggle('active-scenario', scenario === 'normal');
+        document.getElementById('btnStorm').classList.toggle('active-scenario', scenario === 'storm');
+        document.getElementById('btnShelter').classList.toggle('active-scenario', scenario === 'shelter');
+      }
+
+      function triggerSensorFailure() {
+        const onlineSensors = state.sensors.filter(s => s.status === 'Online');
+        if (onlineSensors.length === 0) {
+          addLogEntry('Telemetry Bus', 'MEDIUM', 'All redundant sensors already faulted; resetting sensor array.', 'Action: Run Reset to restore sensors');
+          return;
+        }
+        const target = onlineSensors[Math.floor(Math.random() * onlineSensors.length)];
+        target.status = 'Degraded';
+        renderSensors();
+        addLogEntry('Sensor Diagnostics', 'MEDIUM', `${target.name} signal degraded (weak packet SNR).`, 'Action: Switch to backup channel & monitor');
+
+        setTimeout(() => {
+          // Ensure it wasn't reset in the meantime
+          const current = state.sensors.find(s => s.id === target.id);
+          if (current && current.status === 'Degraded') {
+            current.status = 'Offline';
+            current.lastReading = formatHHMM(new Date());
+            renderSensors();
+            addLogEntry('Sensor Diagnostics', 'HIGH', `${current.name} went OFFLINE at ${current.lastReading}.`, 'Action: Inspect hardware lead & rely on secondary telemetry');
+          }
+        }, 3500);
+      }
+
+      function downloadCSV() {
+        const active = state.crew.find(c => c.id === state.selectedCrewId) || state.crew[0];
+        const ev = evaluateAstronaut(active);
+        const rows = state.csvHistory.length > 0 ? state.csvHistory : [{
+          timestamp: new Date().toISOString(),
+          astronaut: active.name,
+          role: active.role,
+          dose_rate_mSv_hr: active.radiation.doseRate,
+          cumulative_dose_mSv: active.radiation.cumulative,
+          temp_C: active.vitals.temp,
+          spo2_pct: active.vitals.spo2,
+          bp_mmHg: `${active.vitals.sys}/${active.vitals.dia}`,
+          hr_bpm: active.vitals.hr,
+          risk_score: ev.score,
+          alert_level: ev.level
+        }];
+
+        const headers = Object.keys(rows[0]);
+        const csvLines = [
+          headers.join(','),
+          ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(','))
+        ];
+
+        const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `astro-guardian-telemetry-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function exportHealthReportJSON() {
+        const report = {
+          reportTitle: 'Astro Guardian — Mission Control Health & Radiation Report',
+          generatedAt: new Date().toISOString(),
+          missionElapsedTime: formatMET(state.metSeconds),
+          earthComms: state.commsLost ? 'COMMS_LOST' : `${(state.earthDistanceMkm / 18).toFixed(1)} min (${state.earthDistanceMkm}M km)`,
+          activeScenario: state.scenario,
+          baselineMode: state.baselineMode,
+          modelVersion: 'RF-Ensemble v2.4',
+          careerRadiationLimit_mSv: CAREER_LIMIT_MSV,
+          crewStatus: state.crew.map(c => ({
+            id: c.id,
+            name: c.name,
+            role: c.role,
+            vitals: c.vitals,
+            radiation: c.radiation,
+            bodySystemsStrain_pts: c.systems,
+            riskAssessment: evaluateAstronaut(c)
+          })),
+          sensors: state.sensors,
+          recentAlerts: state.logs.slice(0, 25)
+        };
+
+        const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mission-control-health-report-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function resetSimulation() {
+        voiceEngine.silenceNow();
+        localStorage.removeItem(STORAGE_KEY_LOGS);
+        localStorage.removeItem(STORAGE_KEY_STATE);
+
+        state.scenario = 'normal';
+        state.stormIntensity = 0;
+        state.shelterElapsedSec = 0;
+        state.commsLost = false;
+        state.lastSpokenKey = '';
+        state.lastTranscript = 'Voice advisory system armed (English synthesis ready).';
+        state.crew = createInitialCrew();
+        state.sensors = createInitialSensors();
+        state.logs = [];
+        state.csvHistory = [];
+        state.prevCrewLevels = {};
+
+        seedTimeSeries(state.crew);
+        addLogEntry(state.crew[0].name, 'LOW', 'Simulation reset to nominal baseline.', 'Action: Continue normal mission schedule', false);
+        setScenarioButtonUI('normal');
+        renderTranscript();
+        renderAlertLog();
+        renderAll();
+      }
+
+      function bindEvents() {
+        // Baseline Tabs
+        const tabGeneric = document.getElementById('tabGeneric');
+        const tabPersonal = document.getElementById('tabPersonal');
+
+        function updateTabs() {
+          tabGeneric.classList.toggle('active', state.baselineMode === 'generic');
+          tabPersonal.classList.toggle('active', state.baselineMode === 'personal');
+          tabGeneric.setAttribute('aria-selected', state.baselineMode === 'generic');
+          tabPersonal.setAttribute('aria-selected', state.baselineMode === 'personal');
+          persistData();
+          renderAll();
+        }
+
+        tabGeneric.addEventListener('click', () => { state.baselineMode = 'generic'; updateTabs(); });
+        tabPersonal.addEventListener('click', () => { state.baselineMode = 'personal'; updateTabs(); });
+
+        // Header Controls
+        document.getElementById('btnCommsLoss').addEventListener('click', () => {
+          state.commsLost = !state.commsLost;
+          addLogEntry(
+            'Deep Space Network',
+            state.commsLost ? 'MEDIUM' : 'LOW',
+            state.commsLost ? 'Earth communication link lost. Local buffer active.' : 'Earth communication link restored.',
+            state.commsLost ? 'Action: Saving telemetry locally for later sync' : 'Action: Telemetry sync resumed'
+          );
+          renderHeader();
+        });
+
+        document.getElementById('btnMute').addEventListener('click', () => {
+          state.muted = !state.muted;
+          if (state.muted) voiceEngine.silenceNow();
+          persistData();
+          renderHeader();
+        });
+
+        // Scenario Buttons
+        document.getElementById('btnNormal').addEventListener('click', () => {
+          state.scenario = 'normal';
+          state.shelterElapsedSec = 0;
+          setScenarioButtonUI('normal');
+          addLogEntry('Mission Control', 'LOW', 'Normal Day scenario activated.', 'Action: Continue normal mission schedule');
+          renderAll();
+        });
+
+        document.getElementById('btnStorm').addEventListener('click', () => {
+          state.scenario = 'storm';
+          state.shelterElapsedSec = 0;
+          state.lastSpokenKey = ''; // allow fresh storm advisory
+          setScenarioButtonUI('storm');
+          addLogEntry('Space Weather Alert', 'HIGH', 'Solar Particle Event (SPE) detected! Radiation flux spiking 3–5x.', 'Action: Prepare crew for Storm Shelter protocol');
+          renderAll();
+        });
+
+        document.getElementById('btnShelter').addEventListener('click', () => {
+          state.scenario = 'shelter';
+          state.shelterElapsedSec = 0;
+          state.lastSpokenKey = ''; // allow resolution advisory when LOW reached
+          setScenarioButtonUI('shelter');
+          addLogEntry('Crew Action', 'MEDIUM', 'Crew entered Storm Shelter. High-Z shielding attenuating radiation.', 'Action: Monitor vitals during ~10s stabilization window');
+          renderAll();
+        });
+
+        document.getElementById('btnSensorFail').addEventListener('click', triggerSensorFailure);
+        document.getElementById('btnDownloadCsv').addEventListener('click', downloadCSV);
+        document.getElementById('btnExportJson').addEventListener('click', exportHealthReportJSON);
+        document.getElementById('btnReset').addEventListener('click', resetSimulation);
+      }
+
+      /* -----------------------------------------------------------------------
+         BOOTSTRAP
+      ----------------------------------------------------------------------- */
+      function init() {
+        initStarfield();
+        loadPersistedData();
+        seedTimeSeries(state.crew);
+        initCharts();
+        bindEvents();
+
+        // Sync tab state from storage
+        document.getElementById('tabGeneric').classList.toggle('active', state.baselineMode === 'generic');
+        document.getElementById('tabPersonal').classList.toggle('active', state.baselineMode === 'personal');
+
+        // Initialize baseline crew levels
+        for (const c of state.crew) {
+          state.prevCrewLevels[c.id] = evaluateAstronaut(c).level;
+        }
+
+        renderAlertLog();
+        renderAll();
+
+        // 1-second simulation heartbeat
+        setInterval(stepSimulation, 1000);
+      }
+
+      document.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+</body>
+</html>
+```
